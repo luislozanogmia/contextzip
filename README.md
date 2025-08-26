@@ -116,9 +116,8 @@ compressed, stats = cz.compress_messages(conversation_history)
 
 ## Memory Palace & Artificial Mind
 
-ContextZip serves as a research component of the broader Artificial Mind framework, specifically supporting the Memory Palace architecture.
-Read more in the “Artificial Mind Papers – Section 1: A Glimpse of What Has Been and What Could Be”
- on Medium.
+ContextZip serves as a research component of the broader Artificial Mind framework, specifically supporting the Memory Palace architecture.  
+Read more in the [“Artificial Mind Papers – Section 1: A Glimpse of What Has Been and What Could Be”](https://medium.com/@luislozanog86/the-artificial-mind-papers-section-1-a-glimpse-of-what-has-been-and-what-could-be-fab0a5e08eff) on Medium.
  
 ## License
 
