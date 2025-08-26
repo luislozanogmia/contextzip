@@ -8,7 +8,7 @@ It is designed for **research, experimentation, and demos**, not production use.
 
 ## Key Features (Research Use)
 
-- **High Compression Ratio (experimental)**: 80-90% token reduction observed in tests.
+- **High Compression Ratio (experimental)**: 50-90% token reduction observed in tests.
 - **Semantic Preservation**: Keeps domain-specific vocabulary for analysis and exploration.
 - **Zero Dependencies**: Pure Python implementation for simple integration in research scripts.
 - **Configurable**: Frequency thresholds and token budgets can be tweaked for experiments.
