@@ -16,7 +16,7 @@ def test_basic_compression():
     print(f"Compressed messages: {stats.compressed_messages}")
     print(f"Compression ratio: {stats.compression_ratio:.1f}%")
     
-    # Show compressed structure
+    # ADD THIS SECTION HERE:
     print("\nCompressed conversation structure:")
     for i, msg in enumerate(compressed):
         print(f"{i+1}. Role: {msg['role']}")
@@ -29,6 +29,7 @@ def test_basic_compression():
     assert "contextzip:" in compressed[0]["content"], "Should have contextzip prefix"
 
 def test_frequency_filtering():
+    # Create text with repeated terms
     messages = [
         {"role": "user", "content": "machine learning algorithms"},
         {"role": "assistant", "content": "machine learning uses algorithms"},
@@ -49,7 +50,7 @@ def test_token_budget():
         {"role": "user", "content": "Final question"}
     ]
     
-    cz = ContextZip(max_contextzip_tokens=50, debug=True)
+    cz = ContextZip(max_contextzip_tokens=50, debug=True)  # Fixed parameter name
     compressed, stats = cz.compress_messages(long_messages, keep_last_n=1)
     
     print(f"Budget capped tokens: {stats.contextzip_tokens}")

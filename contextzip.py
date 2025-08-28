@@ -54,8 +54,8 @@ class ContextZip:
     4. Maintains technical vocabulary while removing common words
     """
     
-    # Default stopwords tuned for technical content
-    DEFAULT_STOPWORDS = {
+    # Fallback stopwords if config file not found
+    FALLBACK_STOPWORDS = {
         'a', 'an', 'the', 'and', 'or', 'but', 'if', 'then', 'else', 'when', 
         'whenever', 'while', 'to', 'for', 'of', 'on', 'in', 'at', 'by', 'with', 
         'from', 'into', 'about', 'over', 'after', 'before', 'under', 'above',
@@ -67,8 +67,8 @@ class ContextZip:
         'got', 'getting', 'hi', 'hello', 'hey', 'ok', 'okay', 'yep', 'yeah'
     }
     
-    # Regex for extracting tokens (preserves technical terms like tcp_keepalive, c++)
-    TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_+\-/]+")
+    # Default token pattern - can be overridden by config
+    DEFAULT_TOKEN_PATTERN = r"[A-Za-z0-9_+\-/]+"
     
     def __init__(
         self, 
@@ -77,7 +77,10 @@ class ContextZip:
         frequency_threshold: Optional[int] = None,
         max_contextzip_tokens: Optional[int] = None,
         preserve_technical: bool = True,
-        debug: bool = False
+        debug: bool = False,
+        config_path: Optional[str] = None,
+        profile: str = "default",
+        token_pattern: Optional[str] = None
     ):
         """
         Initialize ContextZip compressor.
@@ -86,11 +89,30 @@ class ContextZip:
             custom_stopwords: Additional stopwords to filter out
             min_token_length: Minimum length for tokens to be kept
             frequency_threshold: If set, only keep tokens appearing <= N times
-            max_contextzip_tokens: Maximum number of semantic tokens to include
+            max_proto_tokens: Maximum number of semantic tokens to include
             preserve_technical: Whether to preserve technical terms with underscores/hyphens
             debug: Enable debug logging
+            config_path: Path to JSON configuration file
+            profile: Compression profile to use from config
+            token_pattern: Custom regex pattern for token extraction
         """
-        self.stopwords = self.DEFAULT_STOPWORDS.copy()
+        # Load configuration
+        self.config = self._load_config(config_path)
+        self.profile = profile
+        
+        # Apply profile settings if available
+        profile_settings = self.config.get("compression_profiles", {}).get(profile, {})
+        
+        # Override with profile defaults, then with explicit parameters
+        self.min_token_length = profile_settings.get("min_token_length") or min_token_length
+        self.frequency_threshold = profile_settings.get("frequency_threshold") or frequency_threshold
+        self.max_contextzip_tokens = profile_settings.get("max_contextzip_tokens") or max_contextzip_tokens
+        self.preserve_technical = profile_settings.get("preserve_technical", preserve_technical)
+        
+        # Build stopwords from configuration
+        self.stopwords = self._build_stopwords(profile_settings.get("enabled_stopword_sets", ["basic", "pronouns", "verbs", "demonstratives", "conversational"]))
+        
+        # Add custom stopwords
         if custom_stopwords:
             self.stopwords.update(custom_stopwords)
         
@@ -99,20 +121,91 @@ class ContextZip:
         if env_stopwords:
             self.stopwords.update(env_stopwords.lower().split())
         
-        # Also check legacy environment variable for compatibility
-        legacy_env_stopwords = os.environ.get("CONTEXTZIP_STOPWORDS", "")
+        # Legacy compatibility
+        legacy_env_stopwords = os.environ.get("PROTO_JAPO_STOPWORDS", "")
         if legacy_env_stopwords:
             self.stopwords.update(legacy_env_stopwords.lower().split())
         
-        self.min_token_length = min_token_length
-        self.frequency_threshold = frequency_threshold
-        self.max_contextzip_tokens = max_contextzip_tokens
-        self.preserve_technical = preserve_technical
+        # Set up token pattern
+        if token_pattern:
+            self.token_pattern = re.compile(token_pattern)
+        else:
+            pattern = self.config.get("token_patterns", {}).get("default", self.DEFAULT_TOKEN_PATTERN)
+            self.token_pattern = re.compile(pattern)
+        
         self.debug = debug
+        
+        if self.debug:
+            self._log(f"Initialized with profile '{profile}', {len(self.stopwords)} stopwords")
+    
+    def _load_config(self, config_path: Optional[str] = None) -> Dict:
+        """Load configuration from JSON file."""
+        if config_path is None:
+            # Try to find config in same directory as this file
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.join(script_dir, "contextzip_config.json")
+        
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            self._log(f"Loaded configuration from {config_path}")
+            return config
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            self._log(f"Could not load config file ({e}), using fallback configuration")
+            return self._fallback_config()
+    
+    def _fallback_config(self) -> Dict:
+        """Return fallback configuration if JSON file not available."""
+        return {
+            "stopwords": {
+                "basic": list(self.FALLBACK_STOPWORDS)
+            },
+            "compression_profiles": {
+                "default": {
+                    "enabled_stopword_sets": ["basic"],
+                    "min_token_length": 2,
+                    "frequency_threshold": None,
+                    "max_contextzip_tokens": None,
+                    "preserve_technical": True
+                }
+            },
+            "token_patterns": {
+                "default": self.DEFAULT_TOKEN_PATTERN
+            }
+        }
+    
+    def _build_stopwords(self, enabled_sets: List[str]) -> Set[str]:
+        """Build stopwords set from configuration."""
+        stopwords = set()
+        stopword_config = self.config.get("stopwords", {})
+        
+        for set_name in enabled_sets:
+            if set_name in stopword_config:
+                stopwords.update(stopword_config[set_name])
+                self._log(f"Added {len(stopword_config[set_name])} words from '{set_name}' set")
+        
+        return stopwords
+    
+    def add_domain_stopwords(self, domain: str) -> None:
+        """Add domain-specific stopwords from configuration."""
+        domain_words = self.config.get("custom_domains", {}).get(domain, [])
+        if domain_words:
+            self.stopwords.update(domain_words)
+            self._log(f"Added {len(domain_words)} stopwords for domain '{domain}'")
+        else:
+            self._log(f"Domain '{domain}' not found in configuration")
+    
+    def get_available_profiles(self) -> List[str]:
+        """Get list of available compression profiles."""
+        return list(self.config.get("compression_profiles", {}).keys())
+    
+    def get_available_domains(self) -> List[str]:
+        """Get list of available domain stopword sets."""
+        return list(self.config.get("custom_domains", {}).keys())
         
     def _log(self, message: str) -> None:
         """Debug logging."""
-        if self.debug:
+        if getattr(self, 'debug', False):
             print(f"[CONTEXTZIP] {message}")
     
     def extract_tokens(self, text: str) -> List[str]:
@@ -131,8 +224,8 @@ class ContextZip:
         # Convert to lowercase for processing
         text = text.lower()
         
-        # Extract tokens using regex
-        tokens = self.TOKEN_PATTERN.findall(text)
+        # Extract tokens using configured pattern
+        tokens = self.token_pattern.findall(text)
         
         kept_tokens = []
         seen = set()
@@ -391,30 +484,50 @@ if __name__ == "__main__":
         }
     ]
     
-    # Initialize ContextZip
-    cz = ContextZip(debug=True, frequency_threshold=2)
+    print("\n" + "="*60)
+    print("CONTEXTZIP CONFIGURATION DEMO")
+    print("="*60)
     
-    # Compress the conversation
-    compressed, stats = cz.compress_messages(example_messages, keep_last_n=2)
+    # Demo 1: Default configuration
+    print("\n1. DEFAULT PROFILE:")
+    cz_default = ContextZip(debug=True, profile="default")
+    compressed, stats = cz_default.compress_messages(example_messages, keep_last_n=2)
+    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
     
-    # Print results
-    print("\n" + "="*50)
-    print("CONTEXTZIP COMPRESSION DEMO")
-    print("="*50)
+    # Demo 2: Aggressive compression
+    print("\n2. AGGRESSIVE PROFILE:")
+    cz_aggressive = ContextZip(debug=True, profile="aggressive")
+    compressed, stats = cz_aggressive.compress_messages(example_messages, keep_last_n=2)
+    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
     
-    print(f"\nOriginal messages: {stats.original_messages}")
-    print(f"Compressed messages: {stats.compressed_messages}")
-    print(f"Estimated token reduction: {stats.compression_ratio:.1f}%")
-    print(f"Semantic tokens: {stats.contextzip_tokens}")
+    # Demo 3: Technical profile with domain stopwords
+    print("\n3. TECHNICAL PROFILE + DOMAIN STOPWORDS:")
+    cz_technical = ContextZip(debug=True, profile="technical")
+    cz_technical.add_domain_stopwords("academic")  # Add research-related stopwords
+    compressed, stats = cz_technical.compress_messages(example_messages, keep_last_n=2)
+    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
     
-    print("\nCompressed conversation:")
+    # Demo 4: Custom token pattern for programming content
+    print("\n4. CUSTOM TOKEN PATTERN (programming):")
+    cz_custom = ContextZip(debug=True, token_pattern=r"[A-Za-z0-9._+\-/:<>]+")
+    compressed, stats = cz_custom.compress_messages(example_messages, keep_last_n=2)
+    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
+    
+    # Show available profiles and domains
+    print(f"\n5. AVAILABLE CONFIGURATIONS:")
+    print(f"   Profiles: {cz_default.get_available_profiles()}")
+    print(f"   Domains: {cz_default.get_available_domains()}")
+    
+    # Show final compressed example
+    print(f"\n6. SAMPLE COMPRESSED OUTPUT:")
     for i, msg in enumerate(compressed, 1):
         role = msg['role'].upper()
         content = msg['content']
         if len(content) > 100:
             content = content[:97] + "..."
-        print(f"{i}. {role}: {content}")
+        print(f"   {i}. {role}: {content}")
     
-    print("\n" + "="*50)
-    print("Ready for further testing and integration with LLM APIs!")
-    print("="*50)
+    print("\n" + "="*60)
+    print("Configuration-driven compression ready!")
+    print("Edit 'contextzip_config.json' to customize stopwords and profiles.")
+    print("="*60)

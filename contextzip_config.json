@@ -1,0 +1,78 @@
+{
+  "stopwords": {
+    "basic": [
+      "a", "an", "the", "and", "or", "but", "if", "then", "else", "when", 
+      "whenever", "while", "to", "for", "of", "on", "in", "at", "by", "with", 
+      "from", "into", "about", "over", "after", "before", "under", "above"
+    ],
+    "pronouns": [
+      "i", "me", "my", "we", "our", "you", "your", "he", "she", "it", "they", "them"
+    ],
+    "verbs": [
+      "is", "are", "was", "were", "be", "been", "being", "do", "does", "did", "doing", 
+      "have", "has", "had", "having", "would", "could", "should", "can", "will", 
+      "shall", "may", "might", "get", "got", "getting"
+    ],
+    "demonstratives": [
+      "this", "that", "these", "those", "as", "not", "no", "nor", "so", "too", 
+      "very", "just", "really"
+    ],
+    "conversational": [
+      "hi", "hello", "hey", "ok", "okay", "yep", "yeah", "thanks", "thank", "please"
+    ],
+    "meta_ai": [
+      "user", "users", "assistant", "system", "model", "prompt", "role", "message", 
+      "messages", "chat", "completion", "tool", "function", "instruction", "instructions", 
+      "respond", "response", "answer", "answers", "question", "questions", "ask", 
+      "return", "output", "context", "current", "following", "given", "below", 
+      "above", "step", "steps", "format", "example", "examples", "note", "notes", 
+      "image", "images", "picture", "vision", "video", "content", "text", "tokens", "token"
+    ]
+  },
+  "compression_profiles": {
+    "default": {
+      "enabled_stopword_sets": ["basic", "pronouns", "verbs", "demonstratives", "conversational"],
+      "min_token_length": 2,
+      "frequency_threshold": null,
+      "max_contextzip_tokens": null,
+      "preserve_technical": true
+    },
+    "aggressive": {
+      "enabled_stopword_sets": ["basic", "pronouns", "verbs", "demonstratives", "conversational", "meta_ai"],
+      "min_token_length": 3,
+      "frequency_threshold": 2,
+      "max_contextzip_tokens": 50,
+      "preserve_technical": true
+    },
+    "conservative": {
+      "enabled_stopword_sets": ["basic", "pronouns"],
+      "min_token_length": 2,
+      "frequency_threshold": null,
+      "max_contextzip_tokens": 200,
+      "preserve_technical": true
+    },
+    "technical": {
+      "enabled_stopword_sets": ["basic", "pronouns", "conversational"],
+      "min_token_length": 2,
+      "frequency_threshold": null,
+      "max_contextzip_tokens": 150,
+      "preserve_technical": true
+    }
+  },
+  "token_patterns": {
+    "default": "[A-Za-z0-9_+\\-/]+",
+    "strict_alphanumeric": "[A-Za-z0-9]+",
+    "include_dots": "[A-Za-z0-9._+\\-/]+",
+    "programming": "[A-Za-z0-9._+\\-/:<>]+",
+    "urls_and_paths": "[A-Za-z0-9._+\\-/:@#?=&]+",
+    "unicode_extended": "[\\w+\\-/]+"
+  },
+  "custom_domains": {
+    "medical": ["patient", "diagnosis", "symptom", "treatment", "therapy", "clinical"],
+    "legal": ["case", "court", "law", "statute", "regulation", "compliance"],
+    "financial": ["revenue", "profit", "loss", "investment", "portfolio", "market"],
+    "academic": ["study", "research", "analysis", "methodology", "hypothesis", "conclusion"]
+  },
+  "version": "1.0.0",
+  "description": "ContextZip configuration for semantic compression"
+}
