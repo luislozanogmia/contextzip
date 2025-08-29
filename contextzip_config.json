@@ -40,7 +40,7 @@
     "aggressive": {
       "enabled_stopword_sets": ["basic", "pronouns", "verbs", "demonstratives", "conversational", "meta_ai"],
       "min_token_length": 3,
-      "frequency_threshold": 2,
+      "frequency_threshold": null,
       "max_contextzip_tokens": 50,
       "preserve_technical": true
     },

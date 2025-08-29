@@ -1,4 +1,11 @@
-# Save as test_contextzip.py
+"""
+Test file for ContextZip.
+Validates basic compression, technical term preservation, stopword filtering, and deduplication.
+Ensures last 2 messages stay verbatim while older messages compress to unique semantic tokens.
+Run with: python test_contextzip.py to verify compression works correctly across scenarios.
+"""
+
+
 from contextzip import ContextZip, compress_conversation
 
 def test_basic_compression():
@@ -29,6 +36,7 @@ def test_basic_compression():
     assert "contextzip:" in compressed[0]["content"], "Should have contextzip prefix"
 
 def test_frequency_filtering():
+    # FIXED: Removed frequency_threshold parameter - now tests deduplication
     # Create text with repeated terms
     messages = [
         {"role": "user", "content": "machine learning algorithms"},
@@ -38,10 +46,17 @@ def test_frequency_filtering():
         {"role": "user", "content": "What about neural networks?"}
     ]
     
-    cz = ContextZip(frequency_threshold=2, debug=True)
+    cz = ContextZip(debug=True)  # FIXED: Removed frequency_threshold=2
     compressed, stats = cz.compress_messages(messages, keep_last_n=1)
     
-    print(f"With frequency filter: {stats.contextzip_tokens} tokens")
+    print(f"With deduplication (no frequency filter): {stats.contextzip_tokens} tokens")
+    
+    # Verify that technical terms are preserved despite repetition
+    contextzip_msg = next((msg for msg in compressed if msg.get('role') == 'system'), None)
+    if contextzip_msg:
+        tokens = contextzip_msg['content'].replace('contextzip: ', '').split(', ')
+        technical_terms = [t for t in tokens if t in ['machine', 'learning', 'algorithms', 'deep']]
+        print(f"Technical terms preserved: {technical_terms}")
 
 def test_token_budget():
     long_messages = [

@@ -1,26 +1,20 @@
 #!/usr/bin/env python3
 """
-ContextZip: Semantic Context Compression for LLMs
-=================================================
+ContextZip: Semantic Context Compression for LLMs - Fixed Architecture
+====================================================================
 
 A lightweight library for compressing conversation history while preserving semantic meaning.
-Achieves 80-90% token reduction by extracting and deduplicating key semantic tokens.
+Achieves 50-90% token reduction by extracting and deduplicating key semantic tokens.
+
+ARCHITECTURAL FIX:
+- Removed frequency threshold filtering (was removing important technical terms)
+- Simple deduplication: unique words minus stopwords only
+- Last 2 messages kept verbatim (user + assistant)
+- Older messages compressed to unique semantic tokens
 
 Author: mia_labas & Open Source AI Community
 License: MIT
 Repository: https://github.com/luislozanogmia/contextzip
-
-Usage:
-    from contextzip import ContextZip
-    
-    cz = ContextZip()
-    messages = [
-        {"role": "user", "content": "Explain transformers..."},
-        {"role": "assistant", "content": "Transformers are..."},
-        # ... more messages
-    ]
-    
-    compressed = cz.compress_messages(messages, keep_last_n=2)
 """
 
 import re
@@ -47,11 +41,12 @@ class ContextZip:
     """
     ContextZip semantic context compression for LLMs.
     
-    This class implements a novel approach to context compression that:
-    1. Preserves recent messages in full (configurable)
-    2. Compresses older messages into semantic token lists
-    3. Deduplicates tokens across all older messages
-    4. Maintains technical vocabulary while removing common words
+    FIXED ARCHITECTURE:
+    1. Keep last 2 messages verbatim (user + assistant)
+    2. Compress older messages into unique semantic tokens
+    3. Remove only stopwords from contextzip_config.json
+    4. Global deduplication across all older messages
+    5. No frequency threshold filtering
     """
     
     # Fallback stopwords if config file not found
@@ -74,7 +69,6 @@ class ContextZip:
         self, 
         custom_stopwords: Optional[Set[str]] = None,
         min_token_length: int = 2,
-        frequency_threshold: Optional[int] = None,
         max_contextzip_tokens: Optional[int] = None,
         preserve_technical: bool = True,
         debug: bool = False,
@@ -83,13 +77,12 @@ class ContextZip:
         token_pattern: Optional[str] = None
     ):
         """
-        Initialize ContextZip compressor.
+        Initialize ContextZip compressor with fixed architecture.
         
         Args:
             custom_stopwords: Additional stopwords to filter out
             min_token_length: Minimum length for tokens to be kept
-            frequency_threshold: If set, only keep tokens appearing <= N times
-            max_proto_tokens: Maximum number of semantic tokens to include
+            max_contextzip_tokens: Maximum number of semantic tokens to include
             preserve_technical: Whether to preserve technical terms with underscores/hyphens
             debug: Enable debug logging
             config_path: Path to JSON configuration file
@@ -105,7 +98,6 @@ class ContextZip:
         
         # Override with profile defaults, then with explicit parameters
         self.min_token_length = profile_settings.get("min_token_length") or min_token_length
-        self.frequency_threshold = profile_settings.get("frequency_threshold") or frequency_threshold
         self.max_contextzip_tokens = profile_settings.get("max_contextzip_tokens") or max_contextzip_tokens
         self.preserve_technical = profile_settings.get("preserve_technical", preserve_technical)
         
@@ -120,11 +112,6 @@ class ContextZip:
         env_stopwords = os.environ.get("CONTEXTZIP_STOPWORDS", "")
         if env_stopwords:
             self.stopwords.update(env_stopwords.lower().split())
-        
-        # Legacy compatibility
-        legacy_env_stopwords = os.environ.get("PROTO_JAPO_STOPWORDS", "")
-        if legacy_env_stopwords:
-            self.stopwords.update(legacy_env_stopwords.lower().split())
         
         # Set up token pattern
         if token_pattern:
@@ -164,7 +151,6 @@ class ContextZip:
                 "default": {
                     "enabled_stopword_sets": ["basic"],
                     "min_token_length": 2,
-                    "frequency_threshold": None,
                     "max_contextzip_tokens": None,
                     "preserve_technical": True
                 }
@@ -212,6 +198,9 @@ class ContextZip:
         """
         Extract and filter tokens from text using ContextZip algorithm.
         
+        FIXED: Only removes stopwords and applies deduplication.
+        No frequency filtering that removes important technical terms.
+        
         Args:
             text: Input text to process
             
@@ -248,35 +237,18 @@ class ContextZip:
             if not normalized:
                 continue
             
-            # Deduplicate
+            # Deduplicate - each token appears only once
             if normalized not in seen:
                 kept_tokens.append(normalized)
                 seen.add(normalized)
         
         return kept_tokens
     
-    def _apply_frequency_filter(self, tokens: List[str], all_text: str) -> List[str]:
-        """Apply frequency-based filtering to tokens."""
-        if not self.frequency_threshold:
-            return tokens
-        
-        # Count occurrences of each token in the full text
-        all_text_lower = all_text.lower()
-        filtered_tokens = []
-        
-        for token in tokens:
-            # Count occurrences using word boundaries
-            pattern = rf'\b{re.escape(token)}\b'
-            count = len(re.findall(pattern, all_text_lower))
-            
-            if count <= self.frequency_threshold:
-                filtered_tokens.append(token)
-        
-        return filtered_tokens
-    
     def compress_text(self, text: str) -> List[str]:
         """
         Compress a single text into ContextZip tokens.
+        
+        FIXED: No frequency filtering - just unique tokens minus stopwords.
         
         Args:
             text: Text to compress
@@ -285,10 +257,6 @@ class ContextZip:
             List of semantic tokens
         """
         tokens = self.extract_tokens(text)
-        
-        if self.frequency_threshold:
-            tokens = self._apply_frequency_filter(tokens, text)
-        
         self._log(f"Compressed text to {len(tokens)} tokens")
         return tokens
     
@@ -299,7 +267,13 @@ class ContextZip:
         system_role: str = "system"
     ) -> Tuple[List[Dict], CompressionStats]:
         """
-        Compress a list of messages using ContextZip algorithm.
+        Compress a list of messages using fixed ContextZip algorithm.
+        
+        FIXED ARCHITECTURE:
+        - Keep last N messages verbatim (user + assistant)
+        - Compress older messages to unique tokens minus stopwords
+        - No frequency filtering that removes technical terms
+        - Global deduplication across all older messages
         
         Args:
             messages: List of message dictionaries with 'role' and 'content'
@@ -320,7 +294,6 @@ class ContextZip:
         # Collect tokens from older messages with global deduplication
         contextzip_tokens = []
         seen_global = set()
-        all_older_text = ""
         
         for msg in messages[:keep_start]:
             # Extract text content from message
@@ -335,20 +308,14 @@ class ContextZip:
                         text_parts.append(item)
                 content = ' '.join(text_parts)
             
-            all_older_text += ' ' + str(content)
-            
-            # Extract tokens
+            # Extract tokens (no frequency filtering)
             tokens = self.extract_tokens(str(content))
             
-            # Global deduplication
+            # Global deduplication - each concept appears only once
             for token in tokens:
                 if token not in seen_global:
                     contextzip_tokens.append(token)
                     seen_global.add(token)
-        
-        # Apply frequency filtering if enabled
-        if self.frequency_threshold and all_older_text:
-            contextzip_tokens = self._apply_frequency_filter(contextzip_tokens, all_older_text)
         
         # Apply token budget cap if specified
         if self.max_contextzip_tokens and len(contextzip_tokens) > self.max_contextzip_tokens:
@@ -365,7 +332,7 @@ class ContextZip:
                 "role": system_role,
                 "content": contextzip_content
             })
-            self._log(f"Created contextzip message with {len(contextzip_tokens)} tokens")
+            self._log(f"Created contextzip message with {len(contextzip_tokens)} unique tokens")
         
         # Add the last N messages verbatim
         for msg in messages[keep_start:]:
@@ -400,7 +367,6 @@ class ContextZip:
         config = {
             "stopwords": list(self.stopwords),
             "min_token_length": self.min_token_length,
-            "frequency_threshold": self.frequency_threshold,
             "preserve_technical": self.preserve_technical
         }
         with open(filepath, 'w') as f:
@@ -431,6 +397,8 @@ def compress_conversation(
     """
     Quick compression function for simple use cases.
     
+    FIXED: No frequency filtering, just unique tokens minus stopwords.
+    
     Args:
         messages: List of message dictionaries
         keep_last_n: Number of recent messages to keep full
@@ -447,6 +415,8 @@ def extract_semantic_tokens(text: str, **kwargs) -> List[str]:
     """
     Extract semantic tokens from a single text.
     
+    FIXED: No frequency filtering, just unique tokens minus stopwords.
+    
     Args:
         text: Input text
         **kwargs: ContextZip configuration options
@@ -460,74 +430,60 @@ def extract_semantic_tokens(text: str, **kwargs) -> List[str]:
 
 # Example usage and testing
 if __name__ == "__main__":
-    # Example conversation
+    # Example conversation showing the fix
     example_messages = [
         {
             "role": "user",
-            "content": "Explain how attention mechanisms work in transformers."
+            "content": "Explain how attention mechanisms work in transformers. The attention mechanism is really important."
         },
         {
             "role": "assistant", 
-            "content": "Attention mechanisms are fundamental components of transformer architecture that enable models to focus on relevant parts of input sequences..."
+            "content": "Attention mechanisms are fundamental components of transformer architecture. The attention mechanism enables models to focus on relevant parts of input sequences..."
         },
         {
             "role": "user",
-            "content": "What about multi-head attention specifically?"
+            "content": "What about multi-head attention specifically? I keep hearing about attention mechanisms."
         },
         {
             "role": "assistant",
-            "content": "Multi-head attention allows the model to jointly attend to information from different representation subspaces at different positions..."
+            "content": "Multi-head attention allows the model to jointly attend to information from different representation subspaces. Each attention head learns different relationships..."
         },
         {
             "role": "user",
-            "content": "Can you give me a practical example?"
+            "content": "Can you give me a practical example of attention in action?"
         }
     ]
     
     print("\n" + "="*60)
-    print("CONTEXTZIP CONFIGURATION DEMO")
+    print("CONTEXTZIP FIXED ARCHITECTURE DEMO")
     print("="*60)
     
-    # Demo 1: Default configuration
-    print("\n1. DEFAULT PROFILE:")
-    cz_default = ContextZip(debug=True, profile="default")
-    compressed, stats = cz_default.compress_messages(example_messages, keep_last_n=2)
-    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
+    # Demo the fix: no frequency filtering
+    print("\n1. FIXED ARCHITECTURE - NO FREQUENCY FILTERING:")
+    cz_fixed = ContextZip(debug=True)
+    compressed, stats = cz_fixed.compress_messages(example_messages, keep_last_n=2)
     
-    # Demo 2: Aggressive compression
-    print("\n2. AGGRESSIVE PROFILE:")
-    cz_aggressive = ContextZip(debug=True, profile="aggressive")
-    compressed, stats = cz_aggressive.compress_messages(example_messages, keep_last_n=2)
-    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
+    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.contextzip_tokens}")
     
-    # Demo 3: Technical profile with domain stopwords
-    print("\n3. TECHNICAL PROFILE + DOMAIN STOPWORDS:")
-    cz_technical = ContextZip(debug=True, profile="technical")
-    cz_technical.add_domain_stopwords("academic")  # Add research-related stopwords
-    compressed, stats = cz_technical.compress_messages(example_messages, keep_last_n=2)
-    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
-    
-    # Demo 4: Custom token pattern for programming content
-    print("\n4. CUSTOM TOKEN PATTERN (programming):")
-    cz_custom = ContextZip(debug=True, token_pattern=r"[A-Za-z0-9._+\-/:<>]+")
-    compressed, stats = cz_custom.compress_messages(example_messages, keep_last_n=2)
-    print(f"   Compression: {stats.compression_ratio:.1f}% | Tokens: {stats.proto_japo_tokens}")
-    
-    # Show available profiles and domains
-    print(f"\n5. AVAILABLE CONFIGURATIONS:")
-    print(f"   Profiles: {cz_default.get_available_profiles()}")
-    print(f"   Domains: {cz_default.get_available_domains()}")
-    
-    # Show final compressed example
-    print(f"\n6. SAMPLE COMPRESSED OUTPUT:")
+    # Show the compressed output
+    print(f"\n2. SAMPLE COMPRESSED OUTPUT:")
     for i, msg in enumerate(compressed, 1):
         role = msg['role'].upper()
         content = msg['content']
-        if len(content) > 100:
-            content = content[:97] + "..."
+        if len(content) > 150:
+            content = content[:147] + "..."
         print(f"   {i}. {role}: {content}")
     
+    # Demonstrate that technical terms are preserved
+    print(f"\n3. TECHNICAL TERMS PRESERVED:")
+    contextzip_msg = next((msg for msg in compressed if msg.get('role') == 'system'), None)
+    if contextzip_msg:
+        tokens = contextzip_msg['content'].replace('contextzip: ', '').split(', ')
+        technical_terms = [t for t in tokens if t in ['attention', 'transformer', 'mechanism', 'multi-head', 'architecture']]
+        print(f"   Found technical terms: {technical_terms}")
+        print(f"   (These would have been filtered out by frequency threshold)")
+    
     print("\n" + "="*60)
-    print("Configuration-driven compression ready!")
-    print("Edit 'contextzip_config.json' to customize stopwords and profiles.")
+    print("FIXED: Unique tokens minus stopwords only!")
+    print("Technical terms preserved regardless of repetition frequency.")
     print("="*60)
