@@ -7,16 +7,16 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #0d0f14;
-    --surface: #161921;
-    --surface2: #1e2230;
-    --border: #2a2f3f;
-    --accent: #6c63ff;
-    --accent2: #00d4aa;
-    --accent3: #ff6b6b;
-    --text: #e8eaf0;
-    --muted: #7a8098;
-    --code: #f0b429;
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface2: #eef0f6;
+    --border: #d8dbe8;
+    --accent: #5b52e8;
+    --accent2: #00a882;
+    --accent3: #e04444;
+    --text: #1a1d2e;
+    --muted: #6b7080;
+    --code: #b07c00;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -234,15 +234,15 @@
 
   /* bypass note */
   .bypass-note {
-    background: #1a1410;
-    border: 1px solid #3a2800;
+    background: #fffbf0;
+    border: 1px solid #e8d48a;
     border-left: 3px solid var(--code);
     border-radius: 8px;
     padding: 16px 20px;
     margin-bottom: 40px;
     font-size: 0.82rem;
     line-height: 1.6;
-    color: #c8a85a;
+    color: #7a5c00;
   }
 
   .bypass-note strong { color: var(--code); }
@@ -315,25 +315,25 @@
     <div class="meta">
       <span><span class="dot"></span>April 9, 2026</span>
       <span><span class="dot"></span>Profile: default</span>
-      <span><span class="dot"></span>3 content categories</span>
-      <span><span class="dot"></span>1,539 tokens measured</span>
+      <span><span class="dot"></span>4 content categories</span>
+      <span><span class="dot"></span>73,597 tokens measured</span>
     </div>
   </header>
 
   <!-- STAT CARDS -->
   <div class="stats-row">
     <div class="stat-card green">
-      <div class="stat-label">Best Reduction</div>
-      <div class="stat-value">42.5%</div>
-      <div class="stat-sub">Research text -- 908 -> 522 tokens</div>
+      <div class="stat-label">Conv. layer (large ctx)</div>
+      <div class="stat-value">83.8%</div>
+      <div class="stat-sub">72k token session -- conversational layer</div>
     </div>
     <div class="stat-card purple">
-      <div class="stat-label">Grep Reduction</div>
-      <div class="stat-value">36.8%</div>
-      <div class="stat-sub">Code refs -- 326 -> 206 tokens</div>
+      <div class="stat-label">Research text</div>
+      <div class="stat-value">42.5%</div>
+      <div class="stat-sub">LLM papers + articles -- 908 -> 522 tokens</div>
     </div>
     <div class="stat-card red">
-      <div class="stat-label">Code Bypass</div>
+      <div class="stat-label">Code bypass</div>
       <div class="stat-value">0%</div>
       <div class="stat-sub">Bash/git output -- preserved verbatim</div>
     </div>
@@ -408,6 +408,19 @@
       <div class="breakdown-pct pct-green">-42.5%</div>
     </div>
 
+    <div class="breakdown-row">
+      <div>
+        <div class="breakdown-name">Large context window</div>
+        <div class="breakdown-sub">586 messages, 3 real sessions -- conv. layer 83.8%</div>
+      </div>
+      <div class="bar-track">
+        <div class="bar-orig"></div>
+        <div class="bar-fill" style="width:71.2%; background: #f0a500;"></div>
+      </div>
+      <div class="breakdown-tokens">72,106 -> 51,314 tok</div>
+      <div class="breakdown-pct" style="color:#f0a500;">-28.8%</div>
+    </div>
+
   </div>
 
   <!-- METHODOLOGY -->
@@ -450,8 +463,8 @@
 
 <script>
 const FONT = "'SF Mono', 'Fira Code', monospace";
-const MUTED = '#7a8098';
-const BORDER = '#2a2f3f';
+const MUTED = '#6b7080';
+const BORDER = '#d8dbe8';
 
 Chart.defaults.color = MUTED;
 Chart.defaults.font.family = FONT;
@@ -461,26 +474,26 @@ Chart.defaults.font.size = 11;
 new Chart(document.getElementById('tokenChart'), {
   type: 'bar',
   data: {
-    labels: ['Bash output', 'Grep results', 'Research text'],
+    labels: ['Bash output', 'Grep results', 'Research text', 'Large ctx (72k)'],
     datasets: [
       {
         label: 'Original tokens',
-        data: [305, 326, 908],
-        backgroundColor: '#2a2f3f',
-        borderColor: '#3a4055',
+        data: [305, 326, 908, 72106],
+        backgroundColor: '#d8dbe8',
+        borderColor: '#b0b5c8',
         borderWidth: 1,
         borderRadius: 4,
       },
       {
         label: 'Compressed tokens',
-        data: [305, 206, 522],
+        data: [305, 206, 522, 51314],
         backgroundColor: (ctx) => {
           const idx = ctx.dataIndex;
-          return ['#ff6b6b44', '#6c63ff', '#00d4aa'][idx];
+          return ['#e0444433', '#5b52e8', '#00a882', '#f0a500'][idx];
         },
         borderColor: (ctx) => {
           const idx = ctx.dataIndex;
-          return ['#ff6b6b', '#6c63ff', '#00d4aa'][idx];
+          return ['#e04444', '#5b52e8', '#00a882', '#f0a500'][idx];
         },
         borderWidth: 1,
         borderRadius: 4,
@@ -495,8 +508,8 @@ new Chart(document.getElementById('tokenChart'), {
         callbacks: {
           afterLabel: (ctx) => {
             if (ctx.datasetIndex === 1) {
-              const reductions = [0, 36.8, 42.5];
-              const bypass = [true, false, false];
+              const reductions = [0, 36.8, 42.5, 28.8];
+              const bypass = [true, false, false, false];
               if (bypass[ctx.dataIndex]) return '  code bypass -- preserved verbatim';
               return `  reduction: ${reductions[ctx.dataIndex]}%`;
             }
@@ -519,11 +532,11 @@ new Chart(document.getElementById('tokenChart'), {
 new Chart(document.getElementById('reductionChart'), {
   type: 'doughnut',
   data: {
-    labels: ['Bash (bypass)', 'Grep (-36.8%)', 'Research (-42.5%)'],
+    labels: ['Bash (bypass)', 'Grep (-36.8%)', 'Research (-42.5%)', 'Large ctx (-28.8%)'],
     datasets: [{
-      data: [0, 36.8, 42.5],
-      backgroundColor: ['#2a2f3f', '#6c63ff', '#00d4aa'],
-      borderColor: ['#3a4055', '#7c73ff', '#00e4ba'],
+      data: [0, 36.8, 42.5, 28.8],
+      backgroundColor: ['#d8dbe8', '#5b52e8', '#00a882', '#f0a500'],
+      borderColor: ['#b0b5c8', '#7c73ff', '#00c49a', '#d49000'],
       borderWidth: 1,
     }]
   },
@@ -535,6 +548,7 @@ new Chart(document.getElementById('reductionChart'), {
         callbacks: {
           label: (ctx) => {
             if (ctx.dataIndex === 0) return ' Code bypass -- 0% (correct behavior)';
+            if (ctx.dataIndex === 3) return ' 28.8% overall (83.8% conv. layer)';
             return ` ${ctx.label}: ${ctx.raw}% tokens saved`;
           }
         }
@@ -547,12 +561,12 @@ new Chart(document.getElementById('reductionChart'), {
 new Chart(document.getElementById('charChart'), {
   type: 'bar',
   data: {
-    labels: ['Bash', 'Grep', 'Research'],
+    labels: ['Bash', 'Grep', 'Research', 'Large ctx'],
     datasets: [{
       label: 'Chars saved',
-      data: [0, 2888 - 1496, 5023 - 3329],
-      backgroundColor: ['#2a2f3f', '#6c63ff88', '#00d4aa88'],
-      borderColor: ['#3a4055', '#6c63ff', '#00d4aa'],
+      data: [0, 2888 - 1496, 5023 - 3329, 445982 - 31081],
+      backgroundColor: ['#d8dbe8', '#5b52e888', '#00a88288', '#f0a50088'],
+      borderColor: ['#b0b5c8', '#5b52e8', '#00a882', '#f0a500'],
       borderWidth: 1,
       borderRadius: 4,
     }]
@@ -565,7 +579,7 @@ new Chart(document.getElementById('charChart'), {
         callbacks: {
           label: (ctx) => {
             if (ctx.dataIndex === 0) return ' code bypass -- 0 chars removed';
-            const originals = [2962, 2888, 5023];
+            const originals = [2962, 2888, 5023, 445982];
             const pct = ((ctx.raw / originals[ctx.dataIndex]) * 100).toFixed(1);
             return ` ${ctx.raw.toLocaleString()} chars removed (${pct}%)`;
           }
@@ -576,7 +590,7 @@ new Chart(document.getElementById('charChart'), {
       x: { grid: { color: BORDER }, ticks: { color: MUTED } },
       y: {
         grid: { color: BORDER },
-        ticks: { color: MUTED, callback: v => v.toLocaleString() },
+        ticks: { color: MUTED, callback: v => v >= 1000 ? (v/1000).toFixed(0)+'k' : v },
         title: { display: true, text: 'Characters removed', color: MUTED }
       }
     }
