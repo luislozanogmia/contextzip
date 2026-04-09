@@ -107,9 +107,31 @@ compressed, stats = cz.compress_messages(conversation_history)
 # Analyze or experiment with results
 ```
 
+## Claude Code Hooks
+
+ContextZip ships with four Claude Code hooks that give Claude a persistent rolling memory across long sessions and context compactions.
+
+```bash
+chmod +x install_hooks.sh
+./install_hooks.sh
+```
+
+What the hooks do:
+
+| Hook | Event | Effect |
+|------|-------|--------|
+| `archive_turn.py` | Stop | Compresses + archives every turn to a per-session `.md` file |
+| `compress_tool_output.py` | PostToolUse | Summarizes large Read/Grep/Bash outputs (>3k chars) |
+| `pre_compact.py` | PreCompact | Forces one-line compaction summary |
+| `post_compact.py` | PostCompact | Re-injects last 10 archived turns after compaction |
+
+Session archives are written to `~/.claude/compressed_sessions/` -- plain markdown, greppable across sessions.
+
+See [docs/CLAUDE_CODE_HOOKS.md](docs/CLAUDE_CODE_HOOKS.md) for full details, tuning options, and manual install instructions.
+
 ## Roadmap (Research)
 
-- [ ] Configurable token extraction patterns  
+- [x] Configurable token extraction patterns
 - [ ] Semantic clustering experiments  
 - [ ] Integration with vector stores for context recall  
 - [ ] Multi-modal testing (text+image)
