@@ -48,12 +48,17 @@ Or copy `contextzip.py` and `contextzip_config.json` directly into your project.
 
 ## Benchmarks
 
-| Conversation Length | Original Tokens | Compressed Tokens | Reduction |
-|---------------------|----------------|------------------|-----------|
-| 5 messages          | ~800           | ~180             | ~77%      |
-| 10 messages         | ~2,100         | ~320             | ~85%      |
+Measured on real agent output (bash commands, grep results, web research) using the `default` profile:
 
-*Results on conversational text. Code-heavy sessions compress less as bypass logic preserves them.*
+| Content Type | Original Tokens | Compressed Tokens | Reduction | Notes |
+|---|---|---|---|---|
+| Research text (articles, papers) | ~908 | ~522 | **42.5%** | Narrative prose compresses well |
+| Grep results (code references) | ~326 | ~206 | **36.8%** | Partial -- symbol lines preserved |
+| Bash output (git log, find, ls) | ~305 | ~305 | **0%** | Code bypass -- preserved verbatim |
+
+The code-bypass heuristic fires on content with high symbol density (git diffs, file paths, stack traces) and returns it unchanged -- compressing those would destroy meaning. Compression applies to the conversational and narrative layers around the code.
+
+See [`benchmark_results.html`](benchmark_results.html) for the full visual breakdown.
 
 ## API Reference
 
