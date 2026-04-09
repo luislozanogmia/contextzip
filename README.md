@@ -1,19 +1,18 @@
-
 # ContextZip
 
-**Semantic Context Compression for LLMs (Research Preview)**
+**Semantic Context Compression for LLMs**
 
-ContextZip is a lightweight, zero-dependency Python prototype for **testing semantic compression** of conversation history. 
-It is designed for **research, experimentation, and demos**, not production use.
+ContextZip is a lightweight, zero-dependency Python library for compressing conversation history while preserving semantic meaning. Achieves 50-90% token reduction by extracting and deduplicating key semantic tokens -- code, math, and structured data always pass through unmodified.
 
-## Key Features (Research Use)
+## Key Features
 
-- **High Compression Ratio (experimental)**: 50-90% token reduction observed in tests.
-- **Semantic Preservation**: Keeps domain-specific vocabulary for analysis and exploration.
-- **Zero Dependencies**: Pure Python implementation for simple integration in research scripts.
-- **Configurable**: Frequency thresholds and token budgets can be tweaked for experiments.
+- **High Compression Ratio**: 50-90% token reduction on narrative/conversational text.
+- **Semantic Preservation**: Protection aura keeps logic words and their surrounding context intact.
+- **Code-Safe**: Automatically detects and bypasses compression for code, math, and structured data.
+- **Zero Dependencies**: Pure Python, no ML models required.
+- **Configurable**: Multiple compression profiles and tunable stopword sets via `contextzip_config.json`.
 
-## Quick Start (Demo)
+## Quick Start
 
 ```python
 from contextzip import ContextZip
@@ -29,8 +28,6 @@ compressed, stats = cz.compress_messages(messages, keep_last_n=1)
 print(f"Compression ratio: {stats.compression_ratio:.1f}%")
 ```
 
-> **Note:** This is for **testing only**. API stability is not guaranteed.
-
 ## Installation
 
 ```bash
@@ -39,25 +36,26 @@ cd contextzip
 pip install -e .
 ```
 
-Or simply copy `contextzip.py` for quick testing.
+Or copy `contextzip.py` and `contextzip_config.json` directly into your project.
 
 ## Algorithm Overview
 
-ContextZip applies **frequency-based compression**:
-1. Keeps last N messages intact.
-2. Extracts and deduplicates frequent tokens from earlier history.
-3. Builds a compact system message to preserve semantic context.
+1. **Code bypass** -- if content has fenced code blocks or high symbol density + indentation, skip compression entirely and return verbatim.
+2. **Tail-shield** -- last 2 sentences are always kept uncompressed (clean runway for generation).
+3. **Protection aura** -- logic words (`if`, `for`, `filter`, `error`, etc.) get a 3-word aura; tokens within that window are never deduplicated.
+4. **Stopword filtering** -- removes articles, pronouns, common verbs.
+5. **Global dedup** -- each unique token appears only once in the compressed output.
 
-## Research Benchmarks (Internal)
+## Benchmarks
 
 | Conversation Length | Original Tokens | Compressed Tokens | Reduction |
 |---------------------|----------------|------------------|-----------|
 | 5 messages          | ~800           | ~180             | ~77%      |
 | 10 messages         | ~2,100         | ~320             | ~85%      |
 
-*These benchmarks are from internal testing. Results may vary in other contexts.*
+*Results on conversational text. Code-heavy sessions compress less as bypass logic preserves them.*
 
-## API Reference (Testing)
+## API Reference
 
 ### ContextZip Class
 
@@ -65,46 +63,37 @@ ContextZip applies **frequency-based compression**:
 ContextZip(
     custom_stopwords=None,
     min_token_length=2,
-    frequency_threshold=None,
     max_contextzip_tokens=None,
     preserve_technical=True,
-    debug=False
+    debug=False,
+    config_path=None,   # path to contextzip_config.json
+    profile="default"   # "default" | "aggressive" | "conservative" | "technical"
 )
 ```
 
 ### Main Methods
 
-- `compress_messages(messages, keep_last_n=2)`  
-  Compress multi-turn history, keeping last N intact.
-- `compress_text(text)`  
-  Extract key tokens from a single text.
+- `compress_messages(messages, keep_last_n=2)` -- compress multi-turn history, keeping last N intact.
+- `compress_text(text)` -- extract key tokens from a single text.
+
+### Integrations
+
+```python
+# OpenAI
+cz = ContextZip(profile="aggressive", max_contextzip_tokens=100)
+compressed, stats = cz.compress_messages(messages)
+response = openai.chat.completions.create(model="gpt-4o", messages=compressed)
+
+# Anthropic
+cz = ContextZip(profile="technical")
+compressed, stats = cz.compress_messages(conversation_history)
+response = anthropic.messages.create(model="claude-opus-4-6", messages=compressed)
+```
 
 ## Testing
 
 ```bash
 python test_compression.py
-```
-
-Runs a lightweight test suite covering basic compression behavior and edge cases.
-
-## Experimental Integrations
-
-Examples are for demonstration only. Adjust as needed for research environments.
-
-### OpenAI Example
-
-```python
-cz = ContextZip(max_contextzip_tokens=100)
-compressed, stats = cz.compress_messages(messages)
-# Use compressed data in research workflows
-```
-
-### Anthropic Example
-
-```python
-cz = ContextZip(frequency_threshold=2)
-compressed, stats = cz.compress_messages(conversation_history)
-# Analyze or experiment with results
 ```
 
 ## Claude Code Hooks
@@ -115,8 +104,6 @@ ContextZip ships with four Claude Code hooks that give Claude a persistent rolli
 chmod +x install_hooks.sh
 ./install_hooks.sh
 ```
-
-What the hooks do:
 
 | Hook | Event | Effect |
 |------|-------|--------|
@@ -129,29 +116,30 @@ Session archives are written to `~/.claude/compressed_sessions/` -- plain markdo
 
 See [docs/CLAUDE_CODE_HOOKS.md](docs/CLAUDE_CODE_HOOKS.md) for full details, tuning options, and manual install instructions.
 
-## Roadmap (Research)
+## Roadmap
 
 - [x] Configurable token extraction patterns
-- [ ] Semantic clustering experiments  
-- [ ] Integration with vector stores for context recall  
+- [x] Claude Code hooks for persistent session memory
+- [ ] Semantic clustering experiments
+- [ ] Integration with vector stores for context recall
 - [ ] Multi-modal testing (text+image)
 
 ## Memory Palace & Artificial Mind
 
-ContextZip serves as a research component of the broader Artificial Mind framework, specifically supporting the Memory Palace architecture.  
-Read more in the [“Artificial Mind Papers – Section 1: A Glimpse of What Has Been and What Could Be”](https://medium.com/@luislozanog86/the-artificial-mind-papers-section-1-a-glimpse-of-what-has-been-and-what-could-be-fab0a5e08eff) on Medium.
- 
+ContextZip is the compression layer of the broader Artificial Mind framework, specifically supporting the Memory Palace architecture.
+Read more in the ["Artificial Mind Papers -- Section 1: A Glimpse of What Has Been and What Could Be"](https://medium.com/@luislozanog86/the-artificial-mind-papers-section-1-a-glimpse-of-what-has-been-and-what-could-be-fab0a5e08eff) on Medium.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE).
 
 ## Citation
 
-If you use ContextZip for research, please cite:
+If you use ContextZip, please cite:
 
 ```bibtex
 @software{contextzip2025,
-  title={ContextZip: Semantic Context Compression for LLMs (Research Preview)},
+  title={ContextZip: Semantic Context Compression for LLMs},
   author={mia_labas and Open Source AI Community},
   url={https://github.com/luislozanogmia/contextzip},
   year={2025},
@@ -162,7 +150,3 @@ If you use ContextZip for research, please cite:
 ## Support
 
 - Issues: [GitHub Issues](https://github.com/luislozanogmia/contextzip/issues)
-
----
-
-*This is a research and testing preview. For experimentation only.*
