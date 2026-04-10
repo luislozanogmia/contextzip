@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ContextZip -- Benchmark Results</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root {
     --bg: #f5f6fa;
@@ -206,6 +207,8 @@
   .bd-bar-fill { height: 100%; border-radius: 4px; position: absolute; top: 0; left: 0; }
 
   .bd-tok { font-size: 0.75rem; color: var(--muted); text-align: right; }
+  .bd-orig { font-size: 0.68rem; color: var(--muted); }
+  .bd-comp { font-size: 0.78rem; font-weight: 600; color: var(--text); }
   .bd-pct { font-size: 0.88rem; font-weight: 700; text-align: right; }
 
   /* ── NOTE ── */
@@ -273,45 +276,30 @@
       <div class="stat-sub">vs vanilla /compact -- 1,206 -> 94 ctx tokens</div>
     </div>
     <div class="stat-card c2">
-      <div class="stat-label">Research text</div>
-      <div class="stat-value">42.5%</div>
-      <div class="stat-sub">LLM papers + articles -- 908 -> 522 tokens</div>
+      <div class="stat-label">Conversation</div>
+      <div class="stat-value">52.4%</div>
+      <div class="stat-sub">Async/Python explainer -- 540 -> 257 tokens</div>
     </div>
     <div class="stat-card c3">
-      <div class="stat-label">Grep results</div>
-      <div class="stat-value">36.8%</div>
-      <div class="stat-sub">Code references -- 326 -> 206 tokens</div>
+      <div class="stat-label">Research text</div>
+      <div class="stat-value">43.8%</div>
+      <div class="stat-sub">Transformer paper -- 626 -> 352 tokens</div>
     </div>
     <div class="stat-card c4">
       <div class="stat-label">Code bypass</div>
       <div class="stat-value">0%</div>
-      <div class="stat-sub">Bash/git output -- preserved verbatim</div>
+      <div class="stat-sub">Bash/git + grep -- preserved verbatim</div>
     </div>
   </div>
 
   <!-- MAIN TOKEN CHART -->
   <div class="chart-section chart-card" style="margin-bottom:32px;">
     <div class="chart-title">Token count -- Original vs Compressed (all categories)</div>
-    <div class="chart-wrap">
+    <div class="chart-wrap" style="height:340px;">
       <canvas id="tokenChart"></canvas>
     </div>
   </div>
 
-  <!-- TWO SMALL CHARTS -->
-  <div class="charts-2col">
-    <div class="chart-card">
-      <div class="chart-title">Reduction % by category</div>
-      <div class="chart-wrap">
-        <canvas id="reductionChart"></canvas>
-      </div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Characters removed</div>
-      <div class="chart-wrap">
-        <canvas id="charChart"></canvas>
-      </div>
-    </div>
-  </div>
 
   <!-- COMPACT COMPARISON -->
   <div class="compact-section">
@@ -377,39 +365,6 @@
     would be semantically damaged by deduplication.
   </div>
 
-  <!-- FULL BREAKDOWN TABLE -->
-  <div class="breakdown">
-    <div class="breakdown-title">Full results by category</div>
-
-    <div class="bd-row">
-      <div><div class="bd-name">Bash output</div><div class="bd-sub">git log --stat, find, ls</div></div>
-      <div class="bd-bar"><div class="bd-bar-fill" style="width:100%; background:var(--border);"></div></div>
-      <div class="bd-tok">305 -> 305 tok</div>
-      <div class="bd-pct" style="color:var(--accent3); font-size:0.7rem;">BYPASS</div>
-    </div>
-
-    <div class="bd-row">
-      <div><div class="bd-name">Grep results</div><div class="bd-sub">grep -n def, compress, stopword</div></div>
-      <div class="bd-bar"><div class="bd-bar-fill" style="width:63.2%; background:var(--accent);"></div></div>
-      <div class="bd-tok">326 -> 206 tok</div>
-      <div class="bd-pct" style="color:var(--accent);">-36.8%</div>
-    </div>
-
-    <div class="bd-row">
-      <div><div class="bd-name">Research text</div><div class="bd-sub">LLM papers, RAG articles, arxiv</div></div>
-      <div class="bd-bar"><div class="bd-bar-fill" style="width:57.5%; background:var(--accent2);"></div></div>
-      <div class="bd-tok">908 -> 522 tok</div>
-      <div class="bd-pct" style="color:var(--accent2);">-42.5%</div>
-    </div>
-
-    <div class="bd-row">
-      <div><div class="bd-name">Compact (30k session)</div><div class="bd-sub">vanilla summary vs hooks (1-line + 10 turns)</div></div>
-      <div class="bd-bar"><div class="bd-bar-fill" style="width:7.8%; background:var(--accent4);"></div></div>
-      <div class="bd-tok">1,206 -> 94 tok</div>
-      <div class="bd-pct" style="color:var(--accent4);">-92.2%</div>
-    </div>
-  </div>
-
   <!-- METHODOLOGY -->
   <div class="methodology">
     <h3>Methodology</h3>
@@ -424,7 +379,7 @@
       </div>
       <div class="method-item">
         <div class="lbl">Token counting</div>
-        <div class="val">ContextZip estimator (1 token ≈ 0.75 words)</div>
+        <div class="val">tiktoken cl100k_base (OpenAI tokenizer -- exact counts)</div>
       </div>
       <div class="method-item">
         <div class="lbl">Vanilla compact estimate</div>
@@ -449,51 +404,92 @@
 </div>
 
 <script>
+Chart.register(ChartDataLabels);
 const MUTED = '#6b7080';
 const BORDER = '#d8dbe8';
 Chart.defaults.color = MUTED;
 Chart.defaults.font.family = "'SF Mono', 'Fira Code', monospace";
 Chart.defaults.font.size = 11;
 
+// order: most tokens saved → least: Compact(1112), Conversation(283), Research(274), Code(0)
+const LABELS  = ['Compact (30k)', 'Conversation', 'Research text', 'Code (bypass)'];
+// x-axis labels with % reduction on second line
+const LABELS_PCT = [
+  ['Compact (30k)', '-92.2%'],
+  ['Conversation',  '-52.4%'],
+  ['Research text', '-43.8%'],
+  ['Code (bypass)', 'BYPASS'],
+];
+const C_FILL  = ['#5b52e8aa', '#00a882aa', '#e08c00aa', '#e0444433'];
+const C_BORDER= ['#5b52e8',   '#00a882',   '#e08c00',   '#e04444'  ];
+
 // ── TOKEN COMPARISON ──────────────────────────────────────────────────────────
+// Split compressed into 4 separate datasets so each gets its own legend color
+const ORIG_DATA = [1206, 540, 626, 459];
+const COMP_DATA = [94,   257, 352, 459];
+
 new Chart(document.getElementById('tokenChart'), {
   type: 'bar',
   data: {
-    labels: ['Bash output', 'Grep results', 'Research text', 'Compact (30k session)'],
+    labels: LABELS,
     datasets: [
       {
-        label: 'Original tokens',
-        data: [305, 326, 908, 1206],
+        label: 'Original',
+        data: ORIG_DATA,
         backgroundColor: '#d8dbe8',
         borderColor: '#b0b5c8',
         borderWidth: 1,
         borderRadius: 4,
+        order: 1,
       },
-      {
-        label: 'Compressed tokens',
-        data: [305, 206, 522, 94],
-        backgroundColor: ['#e0444433', '#5b52e8aa', '#00a882aa', '#e08c00aa'],
-        borderColor:     ['#e04444',   '#5b52e8',   '#00a882',   '#e08c00'],
-        borderWidth: 1,
-        borderRadius: 4,
-      }
+      // one compressed dataset per category so legend shows each color
+      { label: 'Compact (compressed)',      data: [94,  null, null, null], backgroundColor: C_FILL[0], borderColor: C_BORDER[0], borderWidth:1, borderRadius:4, order:2 },
+      { label: 'Conversation (compressed)', data: [null, 257, null, null], backgroundColor: C_FILL[1], borderColor: C_BORDER[1], borderWidth:1, borderRadius:4, order:2 },
+      { label: 'Research (compressed)',     data: [null, null, 352, null], backgroundColor: C_FILL[2], borderColor: C_BORDER[2], borderWidth:1, borderRadius:4, order:2 },
+      { label: 'Code (compressed)',         data: [null, null, null, 459], backgroundColor: C_FILL[3], borderColor: C_BORDER[3], borderWidth:1, borderRadius:4, order:2 },
     ]
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'top', labels: { boxWidth: 12, padding: 16 } },
+      datalabels: {
+        anchor: 'center',
+        align: 'center',
+        font: { size: 10, weight: '600' },
+        formatter: (value) => value != null ? value.toLocaleString() : null,
+        display: (ctx) => ctx.dataset.data[ctx.dataIndex] != null,
+        color: '#ffffff',
+      },
+      legend: {
+        position: 'top',
+        labels: {
+          boxWidth: 12,
+          padding: 14,
+          generateLabels: (chart) => [
+            { text: 'Original', fillStyle: '#d8dbe8', strokeStyle: '#b0b5c8', lineWidth: 1, hidden: false, datasetIndex: 0 },
+            ...LABELS.map((lbl, i) => ({
+              text: lbl,
+              fillStyle: C_FILL[i],
+              strokeStyle: C_BORDER[i],
+              lineWidth: 1,
+              hidden: false,
+              datasetIndex: i + 1,
+            }))
+          ]
+        }
+      },
       tooltip: {
         callbacks: {
+          label: (ctx) => {
+            if (ctx.dataset.data[ctx.dataIndex] == null) return null;
+            const isOrig = ctx.datasetIndex === 0;
+            const label = isOrig ? 'Original' : 'Compressed';
+            return ` ${label}: ${ctx.raw.toLocaleString()} tokens`;
+          },
           afterLabel: (ctx) => {
-            if (ctx.datasetIndex === 1) {
-              const info = [
-                'code bypass -- verbatim',
-                '-36.8% reduction',
-                '-42.5% reduction',
-                '-92.2% vs vanilla compact'
-              ];
+            if (ctx.datasetIndex > 0) {
+              const info = ['-92.2% vs vanilla compact', '-52.4% reduction', '-43.8% reduction', 'code bypass -- verbatim'];
               return '  ' + info[ctx.dataIndex];
             }
           }
@@ -505,92 +501,36 @@ new Chart(document.getElementById('tokenChart'), {
       y: {
         grid: { color: BORDER },
         ticks: { color: MUTED },
-        title: { display: true, text: 'Tokens (estimated)', color: MUTED }
+        title: { display: true, text: 'Tokens (tiktoken cl100k_base)', color: MUTED }
       }
+    },
+    plugins: {
+      afterDraw: undefined  // placeholder -- colored % drawn via custom plugin below
     }
   }
 });
 
-// ── REDUCTION % ───────────────────────────────────────────────────────────────
-new Chart(document.getElementById('reductionChart'), {
-  type: 'bar',
-  data: {
-    labels: ['Bash', 'Grep', 'Research', 'Compact'],
-    datasets: [{
-      label: '% reduction',
-      data: [0, 36.8, 42.5, 92.2],
-      backgroundColor: ['#d8dbe8', '#5b52e8aa', '#00a882aa', '#e08c00aa'],
-      borderColor:     ['#b0b5c8', '#5b52e8',   '#00a882',   '#e08c00'],
-      borderWidth: 1,
-      borderRadius: 4,
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx) => {
-            if (ctx.dataIndex === 0) return ' 0% -- code bypass (correct behavior)';
-            return ` ${ctx.raw}% tokens saved`;
-          }
-        }
-      }
-    },
-    scales: {
-      x: { grid: { color: BORDER }, ticks: { color: MUTED } },
-      y: {
-        grid: { color: BORDER },
-        ticks: { color: MUTED, callback: v => v + '%' },
-        max: 100,
-        title: { display: true, text: 'Reduction %', color: MUTED }
-      }
-    }
+// custom plugin: draw colored % lines below x-axis tick labels on tokenChart
+Chart.register({
+  id: 'coloredPctTicks',
+  afterDraw(chart) {
+    if (chart.canvas.id !== 'tokenChart') return;
+    const { ctx, scales: { x } } = chart;
+    const pcts   = ['-92.2%', '-52.4%', '-43.8%', 'BYPASS'];
+    const colors = C_BORDER;
+    ctx.save();
+    ctx.font = "600 10px 'SF Mono','Fira Code',monospace";
+    ctx.textAlign = 'center';
+    x.ticks.forEach((tick, i) => {
+      const xPos = x.getPixelForTick(i);
+      const yPos = x.bottom + 28;
+      ctx.fillStyle = colors[i];
+      ctx.fillText(pcts[i], xPos, yPos);
+    });
+    ctx.restore();
   }
 });
 
-// ── CHARS REMOVED ─────────────────────────────────────────────────────────────
-new Chart(document.getElementById('charChart'), {
-  type: 'bar',
-  data: {
-    labels: ['Bash', 'Grep', 'Research', 'Compact'],
-    datasets: [{
-      label: 'Chars removed',
-      data: [0, 2888 - 1496, 5023 - 3329, 6030 - 470],
-      backgroundColor: ['#d8dbe8', '#5b52e8aa', '#00a882aa', '#e08c00aa'],
-      borderColor:     ['#b0b5c8', '#5b52e8',   '#00a882',   '#e08c00'],
-      borderWidth: 1,
-      borderRadius: 4,
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (ctx) => {
-            if (ctx.dataIndex === 0) return ' 0 -- code bypass';
-            const originals = [2962, 2888, 5023, 6030];
-            const pct = ((ctx.raw / originals[ctx.dataIndex]) * 100).toFixed(1);
-            return ` ${ctx.raw.toLocaleString()} chars removed (${pct}%)`;
-          }
-        }
-      }
-    },
-    scales: {
-      x: { grid: { color: BORDER }, ticks: { color: MUTED } },
-      y: {
-        grid: { color: BORDER },
-        ticks: { color: MUTED, callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v },
-        title: { display: true, text: 'Characters removed', color: MUTED }
-      }
-    }
-  }
-});
 </script>
 </body>
 </html>
