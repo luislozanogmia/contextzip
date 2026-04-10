@@ -47,8 +47,8 @@ def force_contextzip(text, cz=None):
             cz = make_contextzip()
         if cz is None:
             return text
-        tokens = cz.compress_text(text)
-        return " ".join(tokens)
+        tokens = cz.extract_tokens(text)
+        return " ".join(tokens) if tokens else text
     except Exception:
         return text
 
