@@ -48,17 +48,18 @@ Or copy `contextzip.py` and `contextzip_config.json` directly into your project.
 
 ## Benchmarks
 
-Measured on real agent output (bash commands, grep results, web research) using the `default` profile:
+Measured on real agent output using the `default` profile. Token counts via tiktoken `cl100k_base` (exact, not estimated). Sorted by tokens saved:
 
 | Content Type | Original Tokens | Compressed Tokens | Reduction | Notes |
 |---|---|---|---|---|
-| Research text (articles, papers) | ~908 | ~522 | **42.5%** | Narrative prose compresses well |
-| Grep results (code references) | ~326 | ~206 | **36.8%** | Partial -- symbol lines preserved |
-| Bash output (git log, find, ls) | ~305 | ~305 | **0%** | Code bypass -- preserved verbatim |
+| Session compact (30k) | 1,206 | 94 | **92.2%** | vs vanilla /compact -- 1-line + 10 archived turns |
+| Conversation (asyncio explainer) | 540 | 257 | **52.4%** | Narrative prose compresses well |
+| Research text (transformer paper) | 626 | 352 | **43.8%** | Technical articles compress well |
+| Code / structured (bash + grep) | 1,304 | 1,304 | **0%** | Code bypass -- preserved verbatim |
 
 The code-bypass heuristic fires on content with high symbol density (git diffs, file paths, stack traces) and returns it unchanged -- compressing those would destroy meaning. Compression applies to the conversational and narrative layers around the code.
 
-See [`benchmark_results.html`](benchmark_results.html) for the full visual breakdown.
+See [`benchmark_results.html`](benchmark_results.html) or [`benchmark_results.pdf`](benchmark_results.pdf) for the full visual breakdown.
 
 ## API Reference
 
