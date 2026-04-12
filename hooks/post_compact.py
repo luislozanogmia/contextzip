@@ -188,6 +188,17 @@ def main():
             )
         }
 
+    # Also write to recovery file so UserPromptSubmit can inject it
+    # into the NEW context window after a session boundary.
+    # PostCompact's systemMessage goes to the closing context; this file
+    # survives into the next session.
+    try:
+        recovery = Path.home() / ".claude" / "post_compact_recovery.json"
+        with open(recovery, "w", encoding="utf-8") as f:
+            json.dump(output, f)
+    except Exception:
+        pass
+
     print(json.dumps(output))
     sys.exit(0)
 

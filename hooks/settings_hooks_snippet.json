@@ -1,6 +1,18 @@
 {
   "_comment": "Merge this block into your ~/.claude/settings.json under the top-level 'hooks' key.",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/user_prompt_submit.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",
