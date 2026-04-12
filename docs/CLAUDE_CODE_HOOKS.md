@@ -26,6 +26,19 @@ These hooks fix both.
 
 ---
 
+## Compatibility
+
+| Claude Code version | PostCompact hook | Status |
+|---------------------|-----------------|--------|
+| <= 2.1.101 | Not fired | PostCompact registered correctly but never invoked -- confirmed via debug logging across 7 compaction events. No invocation, no debug log created. |
+| >= 2.1.104 | Working | PostCompact fires correctly on every auto-compaction. Confirmed via debug log (`~/.claude/post_compact_debug.log`). |
+
+**If you are on Claude Code <= 2.1.101**: `pre_compact.py` and `archive_turn.py` still work (PreCompact and Stop hooks are unaffected). Only `post_compact.py` is silently skipped. Update Claude Code to 2.1.104+ to get the full rolling window injection.
+
+Run `claude --version` to check.
+
+---
+
 ## Install
 
 ```bash
