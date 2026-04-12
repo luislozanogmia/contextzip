@@ -12,6 +12,7 @@ summary gives the model a compact reference right after the large blob.
 
 import sys
 import json
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path.home() / ".claude"))
@@ -19,6 +20,24 @@ sys.path.insert(0, str(Path.home() / ".claude"))
 THRESHOLD = 3000   # chars -- skip anything smaller
 MIN_RATIO = 0.80   # contextzip must beat this to be used
 HEAD_LINES = 20    # fallback: show this many lines in summary
+SAVINGS_LOG = Path.home() / ".claude" / "contextzip_savings.jsonl"
+
+
+def log_savings(session_id, source, original_chars, compressed_chars, **extra):
+    """Append one savings record to the cumulative log."""
+    try:
+        record = {
+            "ts": datetime.utcnow().isoformat(),
+            "session_id": (session_id or "")[:8],
+            "source": source,
+            "original": original_chars,
+            "compressed": compressed_chars,
+        }
+        record.update(extra)
+        with open(SAVINGS_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        pass
 
 
 def extract_text(tool_name, tool_response):
@@ -81,6 +100,7 @@ def main():
     except Exception:
         sys.exit(0)
 
+    session_id = payload.get("session_id", "")
     tool_name = payload.get("tool_name", "")
     tool_response = payload.get("tool_response", {})
 
@@ -94,6 +114,7 @@ def main():
     if compressed and ratio < MIN_RATIO:
         orig = len(text)
         comp = len(compressed)
+        log_savings(session_id, "compress_tool_output", orig, comp, tool=tool_name)
         context = (
             f"[ContextZip/{tool_name}] Compressed output "
             f"({orig:,} → {comp:,} chars, {ratio:.0%}):\n{compressed}"

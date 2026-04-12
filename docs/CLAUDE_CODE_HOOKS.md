@@ -23,6 +23,7 @@ These hooks fix both.
 | `compress_tool_output.py` | PostToolUse | Summarizes Read/Grep/Bash outputs > 3,000 chars |
 | `pre_compact.py` | PreCompact | Forces Claude to write a one-line compaction summary |
 | `post_compact.py` | PostCompact | Re-injects last 10 archived turns after compaction |
+| `stats.py` | (utility) | Prints cumulative token savings since install |
 
 ---
 
@@ -159,6 +160,41 @@ grep -r "keyword" ~/.claude/compressed_sessions/
 
 # Read a specific session
 cat ~/.claude/compressed_sessions/automata_session_2e0bba5f.md
+```
+
+---
+
+## Savings stats
+
+`stats.py` tracks cumulative compression savings across all hooks. Logs are written to `~/.claude/contextzip_savings.jsonl`.
+
+```bash
+# Human-readable report
+python3 ~/.claude/hooks/stats.py
+
+# JSON output (for scripting)
+python3 ~/.claude/hooks/stats.py --json
+```
+
+Example output:
+```
+ContextZip -- cumulative savings
+==========================================
+  Events logged : 47
+  Sessions      : 12
+  Since         : 2026-04-12 09:14:03 UTC
+  Last event    : 2026-04-14 17:42:11 UTC
+
+  Original      : 284.3K chars
+  Compressed    : 91.2K chars
+  Saved         : 193.1K chars  (67.9%)
+  ~Tokens saved : 48.3K tokens  (est. 4 chars/token)
+
+By hook:
+  archive_turn.py     (Stop -- assistant text)
+    31 events  |  142.7K chars saved  (71.2%)
+  compress_tool_output.py (PostToolUse -- Read/Grep/Bash)
+    16 events  |  50.4K chars saved  (61.8%)
 ```
 
 ---

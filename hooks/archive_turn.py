@@ -16,6 +16,24 @@ sys.path.insert(0, str(Path.home() / ".claude"))
 
 ARCHIVE_DIR = Path.home() / ".claude" / "compressed_sessions"
 ARCHIVE_FALLBACK = Path.home() / "automata_session_current.md"
+SAVINGS_LOG = Path.home() / ".claude" / "contextzip_savings.jsonl"
+
+
+def log_savings(session_id, source, original_chars, compressed_chars, **extra):
+    """Append one savings record to the cumulative log."""
+    try:
+        record = {
+            "ts": datetime.utcnow().isoformat(),
+            "session_id": (session_id or "")[:8],
+            "source": source,
+            "original": original_chars,
+            "compressed": compressed_chars,
+        }
+        record.update(extra)
+        with open(SAVINGS_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception:
+        pass
 
 
 def session_archive(session_id):
@@ -89,7 +107,12 @@ def append_to_archive(session_id, user_text, assistant_text):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     sid = (session_id or "unknown")[:8]
 
+    orig_len = len(assistant_text)
     compressed = compress_text(assistant_text)
+    comp_len = len(compressed)
+
+    if comp_len < orig_len:
+        log_savings(session_id, "archive_turn", orig_len, comp_len)
 
     entry = f"\n## [{timestamp}] {sid}\n**User:** {user_text}\n**Claude:** {compressed}\n"
 
